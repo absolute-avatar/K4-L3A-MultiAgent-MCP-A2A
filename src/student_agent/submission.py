@@ -10,6 +10,7 @@ from typing import Any
 from . import OUTPUT_SCHEMA_VERSION, VARIANT_ID
 from .cases import CaseSet
 from .contracts import Contracts
+from .verifier import check_consistency, check_lifecycle
 
 SECRET_PATTERN = re.compile(r"sk-team-[A-Za-z0-9_-]{8,}")
 MAX_FILE_BYTES = 1024 * 1024
@@ -64,6 +65,7 @@ def validate_artifacts(
     except (OSError, UnicodeDecodeError) as exc:
         raise ValueError("traces/trace.jsonl is missing or not UTF-8") from exc
     normalized_lines: list[str] = []
+    trace_events: list[dict[str, Any]] = []
     seen_events: set[str] = set()
     for number, line in enumerate(trace_lines, 1):
         if not line.strip():
@@ -78,7 +80,13 @@ def validate_artifacts(
         if event["event_id"] in seen_events:
             raise ValueError(f"traces/trace.jsonl:{number}: duplicate event_id")
         seen_events.add(event["event_id"])
+        trace_events.append(event)
         normalized_lines.append(json.dumps(event, ensure_ascii=False, separators=(",", ":")))
+
+    for output in outputs.values():
+        json.dumps(output, allow_nan=False)
+        check_consistency(output)
+        check_lifecycle(output, trace_events, finalized=True)
 
     serialized = [json.dumps(value, ensure_ascii=False) for value in outputs.values()]
     if SECRET_PATTERN.search("\n".join([*serialized, *normalized_lines])):

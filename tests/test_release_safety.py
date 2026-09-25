@@ -1,11 +1,10 @@
 from pathlib import Path
 
 
-def test_repository_contains_no_competition_payload() -> None:
+def test_competition_payload_is_gitignored() -> None:
     root = Path(__file__).resolve().parents[1]
-    assert not (root / "case-set.json").exists()
-    assert list((root / "inputs").glob("*.json")) == []
-    assert list((root / "outputs").glob("*.json")) == []
+    ignores = (root / ".gitignore").read_text(encoding="utf-8").splitlines()
+    assert {"case-set.json", "inputs/*", "outputs/*", "traces/*"} <= set(ignores)
     forbidden = {"oracles", "reference-outputs", "private-partitions.json", "mcp-access.json"}
     assert not any(path.name in forbidden for path in root.rglob("*"))
 

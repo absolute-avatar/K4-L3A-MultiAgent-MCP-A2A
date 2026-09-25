@@ -51,3 +51,12 @@ class Contracts:
 
     def validate_evidence(self, value: Any, label: str = "MCP response") -> None:
         self.validate("mcp-evidence-response-v1.schema.json", value, label)
+
+    def scoring_policy(self) -> dict[str, Any]:
+        """Read public grading requirements, not arbitration/refund rules."""
+        value = json.loads(
+            (self.root.parent / "scoring" / "scoring-policy-v2.json").read_text(encoding="utf-8")
+        )
+        if value.get("policy_version") != "day09-scoring-v2":
+            raise ContractError("unsupported scoring policy")
+        return value

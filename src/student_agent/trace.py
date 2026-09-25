@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import secrets
+from copy import deepcopy
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -15,6 +16,7 @@ class TraceWriter:
     def __init__(self, path: Path, contracts: Contracts) -> None:
         self.path = path
         self.contracts = contracts
+        self._events: list[dict[str, Any]] = []
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
     def emit(
@@ -31,10 +33,12 @@ class TraceWriter:
     ) -> dict[str, Any]:
         event: dict[str, Any] = {
             "schema_version": "day09-trace-event-v1",
-            "event_id": f"evt_{secrets.token_urlsafe(18)}",
+            "event_id": f"evt_{secrets.token_urlsafe(12)}",
             "case_id": case_id,
             "event_type": event_type,
-            "occurred_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+            "occurred_at": datetime.now(UTC)
+            .isoformat(timespec="milliseconds")
+            .replace("+00:00", "Z"),
             "actor": actor,
         }
         optional = {
@@ -48,4 +52,9 @@ class TraceWriter:
         self.contracts.validate_trace(event, "trace event")
         with self.path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(event, ensure_ascii=False, separators=(",", ":")) + "\n")
+        self._events.append(deepcopy(event))
         return event
+
+    def events(self, case_id: str) -> list[dict[str, Any]]:
+        """Return events written in this run, not records from an older trace."""
+        return deepcopy([event for event in self._events if event["case_id"] == case_id])
